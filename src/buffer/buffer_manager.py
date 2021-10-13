@@ -2,7 +2,7 @@ from threading import Lock
 from typing import Tuple
 import time
 from readerwriterlock import rwlock
-from src.buffer.buffer_full_error import BufferFullError
+from src.buffer.error import BufferFullError
 from src.buffer.buffer_frame import BufferFrame
 from src.buffer.replacement.abstract_replacer import AbstractReplacer
 from src.util.constants import INVALID_FRAME_ID
