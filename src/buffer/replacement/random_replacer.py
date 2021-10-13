@@ -11,11 +11,8 @@ class RandomReplacer(AbstractReplacer):
 
     def pin_page(self, frame_id: int):
         self._mutex.acquire()
-        self._do_pin_page(frame_id)
-        self._mutex.release()
-
-    def _do_pin_page(self, frame_id: int):
         self._free_frames.remove(frame_id)
+        self._mutex.release()        
 
     def unpin_page(self, frame_id: int):
         self._mutex.acquire()
@@ -25,6 +22,5 @@ class RandomReplacer(AbstractReplacer):
     def get_victim(self) -> int:
         self._mutex.acquire()
         victim = self._free_frames[self._random.randint(0, len(self._free_frames)-1)]
-        self._do_pin_page(victim)
         self._mutex.release()
         return victim

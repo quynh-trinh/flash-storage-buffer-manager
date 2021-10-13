@@ -7,6 +7,7 @@ CS4420 / CS6422 project that explores the effectiveness of flash optmized buffer
 1. Create virtualenv: `python3 -m venv venv`
 2. Activate the virtualenv: `source venv/bin/activate`
 3. Upgrade pip: `pip install --upgrade pip`
+4. Install dependencies: `pip install -r requirements.txt`
 
 ## Testing
 

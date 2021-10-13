@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 class BufferFrame():
     def __init__(self, frame_id: int, page_size: int):
         self._dirty = False
         self._page_id = -1
         self._frame_id = frame_id
         self._page_size = page_size
+        self._exclusive = False
         self._data = bytearray(self._page_size)
 
     @property
@@ -29,6 +32,14 @@ class BufferFrame():
     @frame_id.setter
     def frame_id(self, frame_id: bool):
         self._frame_id = frame_id
+    
+    @property
+    def exclusive(self) -> bool:
+        return self._exclusive
+    
+    @exclusive.setter
+    def exclusive(self, is_exclusive: bool):
+        self._exclusive = is_exclusive
 
     @property
     def data(self) -> bytearray:
@@ -37,3 +48,13 @@ class BufferFrame():
     @frame_id.setter
     def frame_id(self, data: bool):
         self._data = data
+    
+    def move(self) -> BufferFrame:
+        copy = BufferFrame(self._frame_id, self._page_size)
+        copy.dirty(self._dirty)
+        copy.page_id(self._page_id)
+
+        copy.data(self._data)
+        new_data = bytearray(self._page_size)
+        self._data = new_data
+        return copy

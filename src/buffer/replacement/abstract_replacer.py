@@ -24,9 +24,7 @@ class AbstractReplacer(ABC):
     def unpin_page(self, frame_id: int):
         pass
 
-    """Get the next victim frame. This function should call pin_page
-    for thread safety so the same victim won't be returned to two different
-    threads.
+    """Get the next victim frame.
     """
     @abstractmethod
     def get_victim(self) -> int:
