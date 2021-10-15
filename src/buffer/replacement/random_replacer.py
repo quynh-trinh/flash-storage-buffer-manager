@@ -12,6 +12,7 @@ class RandomReplacer(AbstractReplacer):
     def pin_page(self, frame_id: int):
         self._mutex.acquire()
         if frame_id not in self._free_frames:
+            self._mutex.release()
             raise ValueError(f"Error: Frame {frame_id} is not a free frame.")
         self._free_frames.remove(frame_id)
         self._mutex.release()        
