@@ -1,4 +1,5 @@
 from __future__ import annotations
+import mmap
 
 class BufferFrame():
     def __init__(self, frame_id: int, page_size: int):
@@ -7,7 +8,10 @@ class BufferFrame():
         self._frame_id = frame_id
         self._page_size = page_size
         self._exclusive = False
-        self._data = bytearray(self._page_size)
+        self._data = mmap.mmap(-1, self._page_size)
+    
+    def __del__(self):
+        self._data.close()
 
     @property
     def dirty(self) -> bool:
@@ -42,19 +46,19 @@ class BufferFrame():
         self._exclusive = is_exclusive
 
     @property
-    def data(self) -> bytearray:
+    def data(self) -> mmap:
         return self._data
     
-    @frame_id.setter
-    def frame_id(self, data: bool):
+    @data.setter
+    def data(self, data: mmap):
         self._data = data
     
     def move(self) -> BufferFrame:
         copy = BufferFrame(self._frame_id, self._page_size)
-        copy.dirty(self._dirty)
-        copy.page_id(self._page_id)
+        copy.dirty = self._dirty
+        copy.page_id = self._page_id
 
-        copy.data(self._data)
-        new_data = bytearray(self._page_size)
+        copy.data = self._data
+        new_data = mmap.mmap(-1, self._page_size)
         self._data = new_data
         return copy

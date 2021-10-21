@@ -1,12 +1,12 @@
 from threading import Lock
 from typing import Tuple
 import time
-from readerwriterlock import rwlock
 from src.buffer.error import BufferFullError
 from src.buffer.buffer_frame import BufferFrame
 from src.buffer.replacement.abstract_replacer import AbstractReplacer
 from src.util.constants import INVALID_FRAME_ID
 from src.util.AtomicInteger import AtomicInteger
+from src.util.ReaderWriterLock import ReaderWriterLock
 
 class BufferManager():
     def __init__(self, frame_count: int, page_size: int, replacer: AbstractReplacer):
@@ -19,7 +19,7 @@ class BufferManager():
         self._page_to_frame = dict()
         self._next_unused_frame = 0
 
-        self._lock_table = [rwlock.RWLockFair() for i in range(self._frame_count)]        
+        self._lock_table = [ReaderWriterLock() for i in range(self._frame_count)]        
         self._use_counters = [AtomicInteger() for i in range(self._frame_count)]
 
         self._pending_writes_lock = Lock()
@@ -28,7 +28,7 @@ class BufferManager():
     
     def __del__(self):
         for frame in self._frames:
-            if frame.dirty():
+            if frame.dirty:
                 self._write_frame(frame.frame_id)
     
     """ Waits for a pending write to complete, if needed.
@@ -58,7 +58,7 @@ class BufferManager():
     Returns the id of the free frame and a copy of the evicted frame,
     if a frame was evicted to make room for the new one.
     """
-    def _find_free_frame(self, page_id: int) -> Tuple[int, BufferFrame]:
+    def _find_frame_to_use(self, page_id: int) -> Tuple[int, BufferFrame, bool]:
         frame_id = INVALID_FRAME_ID
         frame_to_evict = None
         found_existing = False
@@ -78,6 +78,7 @@ class BufferManager():
             if frame_id == INVALID_FRAME_ID:
                 frame_id = self._replacer.get_victim()
                 frame_to_evict = self._frames[frame_id].move()
+                del(self._page_to_frame[frame_to_evict.page_id])
                 if frame_to_evict.dirty():
                     self._add_pending_write(frame_to_evict.page_id())
 
@@ -86,25 +87,25 @@ class BufferManager():
                 raise BufferFullError()
 
             self._use_counters[frame_id].inc()
+            self._page_to_frame[page_id] = frame_id
             self._replacer.pin_page(frame_id)
 
             # If page is new to the pool, update frame metadata
             if not found_existing:
-                self._frames[frame_id].dirty(False)
-                self._frames[frame_id].page_id(page_id)
-            # Lock frame in exclusive mode for reading
-            self._lock_frame(page_id, True)
+                self._frames[frame_id].dirty = False
+                self._frames[frame_id].page_id = page_id
+                # Lock frame in exclusive mode for reading
+                self._lock_frame(page_id, True)
 
-            return frame_id, frame_to_evict
+            return frame_id, frame_to_evict, found_existing
 
     def fix_page(self, page_id: int, exclusive: bool) -> BufferFrame:
-        frame_id, frame_to_evict = self._find_free_frame()
+        frame_id, frame_to_evict, found_existing = self._find_frame_to_use(page_id)
 
-        if frame_to_evict != None:
-            if frame_to_evict.dirty():
-                self._write_frame(frame_to_evict)
-                self._remove_pending_write(frame_to_evict.page_id())
-        
+        if frame_to_evict != None and frame_to_evict.dirty:
+            self._write_frame(frame_to_evict)
+            self._remove_pending_write(frame_to_evict.page_id())
+        if not found_existing:
             self._read_frame(frame_id)
             self._unlock_frame(frame_id)
         
@@ -112,24 +113,26 @@ class BufferManager():
         return self._frames[frame_id]
 
     def unfix_page(self, frame: BufferFrame, is_dirty: bool):
-        frame.dirty(frame.dirty() or is_dirty)
+        frame.dirty = frame.dirty or is_dirty
         
-        self._unlock_frame(frame.frame_id())
-        self._use_counters[frame.frame_id()].dec()
+        self._unlock_frame(frame.frame_id)
+        counter_val = self._use_counters[frame.frame_id].dec()
+        if counter_val == 0:
+            self._replacer.unpin_page(frame.frame_id)
 
     def _lock_frame(self, frame_id: int, exclusive: bool):
         if exclusive:
-            self._lock_table[frame_id].gen_wlock().acquire()
-            self._frames[frame_id].exclusive(True)
+            self._lock_table[frame_id].lock_exclusive()
+            self._frames[frame_id].exclusive = True
         else:
-            self._lock_table[frame_id].gen_rlock().acquire()
-            self._frames[frame_id].exclusive(False)
+            self._lock_table[frame_id].lock_shared()
+            self._frames[frame_id].exclusive = False
 
     def _unlock_frame(self, frame_id: int):
-        if self._frames[frame_id].exclusive():
-            self._lock_table[frame_id].gen_wlock().release()
+        if self._frames[frame_id].exclusive:
+            self._lock_table[frame_id].release_exclusive()
         else:
-            self._lock_table[frame_id].gen_rlock().release()
+            self._lock_table[frame_id].release_shared()
 
     def _read_frame(self, frame_id: int):
         pass
