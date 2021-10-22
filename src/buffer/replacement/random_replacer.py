@@ -1,6 +1,7 @@
 from random import Random
 from threading import Lock
 from src.buffer.replacement.abstract_replacer import AbstractReplacer
+from src.buffer.error import BufferFullError
 
 class RandomReplacer(AbstractReplacer):
     def __init__(self, frame_count):
@@ -22,6 +23,8 @@ class RandomReplacer(AbstractReplacer):
 
     def get_victim(self) -> int:
         self._mutex.acquire()
+        if len(self._unpinned_frames) == 0:
+            raise BufferFullError
         victim = self._unpinned_frames[self._random.randint(0, len(self._unpinned_frames)-1)]
         self._mutex.release()
         return victim

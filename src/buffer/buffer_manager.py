@@ -4,15 +4,18 @@ import time
 from src.buffer.error import BufferFullError
 from src.buffer.buffer_frame import BufferFrame
 from src.buffer.replacement.abstract_replacer import AbstractReplacer
+from src.buffer.file_manager import FileManager
 from src.util.constants import INVALID_FRAME_ID
 from src.util.AtomicInteger import AtomicInteger
 from src.util.ReaderWriterLock import ReaderWriterLock
+from src.util.page_id_utils import get_segment_id, get_segment_page_id
 
 class BufferManager():
-    def __init__(self, frame_count: int, page_size: int, replacer: AbstractReplacer):
+    def __init__(self, frame_count: int, page_size: int, replacer: AbstractReplacer, file_manager: FileManager):
         self._frame_count = frame_count
         self._page_size = page_size
         self._replacer = replacer
+        self._file_manager = file_manager
 
         self._frames_lock = Lock()
         self._frames = [BufferFrame(i, self._page_size) for i in range(self._frame_count)]
@@ -29,7 +32,7 @@ class BufferManager():
     def __del__(self):
         for frame in self._frames:
             if frame.dirty:
-                self._write_frame(frame.frame_id)
+                self._write_frame(frame)
     
     """ Waits for a pending write to complete, if needed.
     Preconditions: _frames_lock has been acquired by the caller.
@@ -79,8 +82,8 @@ class BufferManager():
                 frame_id = self._replacer.get_victim()
                 frame_to_evict = self._frames[frame_id].move()
                 del(self._page_to_frame[frame_to_evict.page_id])
-                if frame_to_evict.dirty():
-                    self._add_pending_write(frame_to_evict.page_id())
+                if frame_to_evict.dirty:
+                    self._add_pending_write(frame_to_evict.page_id)
 
             # If no usable frame found
             if frame_id == INVALID_FRAME_ID:
@@ -95,7 +98,7 @@ class BufferManager():
                 self._frames[frame_id].dirty = False
                 self._frames[frame_id].page_id = page_id
                 # Lock frame in exclusive mode for reading
-                self._lock_frame(page_id, True)
+                self._lock_frame(frame_id, True)
 
             return frame_id, frame_to_evict, found_existing
 
@@ -104,12 +107,12 @@ class BufferManager():
 
         if frame_to_evict != None and frame_to_evict.dirty:
             self._write_frame(frame_to_evict)
-            self._remove_pending_write(frame_to_evict.page_id())
+            self._remove_pending_write(frame_to_evict.page_id)
         if not found_existing:
             self._read_frame(frame_id)
             self._unlock_frame(frame_id)
         
-        self._lock_frame(page_id, exclusive)
+        self._lock_frame(frame_id, exclusive)
         return self._frames[frame_id]
 
     def unfix_page(self, frame: BufferFrame, is_dirty: bool):
@@ -135,7 +138,15 @@ class BufferManager():
             self._lock_table[frame_id].release_shared()
 
     def _read_frame(self, frame_id: int):
-        pass
+        page_id = self._frames[frame_id].page_id
+        segment_id = get_segment_id(page_id)
+        segment_page_id = get_segment_page_id(page_id)
+
+        self._file_manager.read_block(str(segment_id), segment_page_id, self._frames[frame_id].data)
 
     def _write_frame(self, frame: BufferFrame):
-        pass
+        page_id = frame.page_id
+        segment_id = get_segment_id(page_id)
+        segment_page_id = get_segment_page_id(page_id)
+
+        self._file_manager.write_block(str(segment_id), segment_page_id, frame.data)
