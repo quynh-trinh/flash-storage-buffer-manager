@@ -36,8 +36,8 @@ class Test2QReplacer(unittest.TestCase):
         self.assertEqual([1, 2], self.twoq_replacer.fifo_q)
         self.assertEqual([3], self.twoq_replacer.lru_q)
         self.twoq_replacer.pin_page(3)
-        self.assertEqual([1, 2, 3], self.twoq_replacer.fifo_q)
-        self.assertEqual([], self.twoq_replacer.lru_q)
+        self.assertEqual([1, 2], self.twoq_replacer.fifo_q)
+        self.assertEqual([3], self.twoq_replacer.lru_q)
 
     def test_find_victim_when_buffer_is_full(self):
         self.twoq_replacer.pin_page(1)

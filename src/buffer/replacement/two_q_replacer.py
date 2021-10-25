@@ -26,13 +26,10 @@ class TwoQReplacer(AbstractReplacer):
             self._fifo_queue.append(frame_id)
             self._free_frame_count -= 1
             self._counter[frame_id] = [0, True]
-        # when the frame is in queue
+        # when the frame is in fifo queue
         elif frame_id in self._fifo_queue:
             self._fifo_queue.remove(frame_id)
             self._lru_queue.append(frame_id)
-        elif frame_id in self._lru_queue and self._counter[frame_id][0] == 0:
-            self._lru_queue.remove(frame_id)
-            self._fifo_queue.append(frame_id)
         self._counter[frame_id][0] += 1
         self._counter[frame_id][1] = True
         self._mutex.release()
