@@ -20,6 +20,8 @@ class Test2QReplacer(unittest.TestCase):
         self.assertEqual([1,2], self.twoq_replacer.fifo_q)
         self.assertEqual([], self.twoq_replacer.lru_q)
         self.twoq_replacer.pin_page(2)
+        self.assertEqual([1], self.twoq_replacer.fifo_q)
+        self.assertEqual([2], self.twoq_replacer.lru_q)
         self.twoq_replacer.unpin_page(2)
         self.assertEqual([1], self.twoq_replacer.fifo_q)
         self.assertEqual([2], self.twoq_replacer.lru_q)
@@ -45,10 +47,6 @@ class Test2QReplacer(unittest.TestCase):
         self.twoq_replacer.pin_page(3)
         v1 = self.twoq_replacer.get_victim()
         self.assertEqual(-1, v1)
-        self.twoq_replacer.pin_page(1)
-        self.twoq_replacer.pin_page(2)
-        v2 = self.twoq_replacer.get_victim()
-        self.assertEqual(-1, v2)
 
     def test_find_victim_in_fifo(self):
         self.twoq_replacer.pin_page(1)
@@ -67,8 +65,8 @@ class Test2QReplacer(unittest.TestCase):
         self.assertEqual([2], self.twoq_replacer.lru_q)
         victim = self.twoq_replacer.get_victim()
         self.assertEqual(2, victim, 2)
-        self.assertEqual([1, 2], self.twoq_replacer.fifo_q)
-        self.assertEqual([], self.twoq_replacer.lru_q)
+        self.assertEqual([1], self.twoq_replacer.fifo_q)
+        self.assertEqual([2], self.twoq_replacer.lru_q)
 
 if __name__ == '__main__':
     unittest.main()
