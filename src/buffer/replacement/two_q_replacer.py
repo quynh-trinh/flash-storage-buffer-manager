@@ -33,7 +33,7 @@ class TwoQReplacer(AbstractReplacer):
             self._pages[frame_id] = [False, True] # page is in lru and is being pinned
         self._mutex.release()
 
-    def unpin_page(self, page_id: int, dirty: bool):
+    def unpin_page(self, page_id: int, dirty=False):
         self._mutex.acquire()
         if page_id not in self._pages:
             self._mutex.release()
