@@ -1,6 +1,5 @@
 from threading import Lock
 from src.buffer.replacement.abstract_replacer import AbstractReplacer
-from src.buffer.error import BufferFullError
 
 
 class TwoQReplacer(AbstractReplacer):
