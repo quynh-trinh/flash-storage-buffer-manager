@@ -5,14 +5,14 @@ from src.buffer.replacement.abstract_replacer import AbstractReplacer
 
 
 class CFDCReplacer(AbstractReplacer):
-    def __init__(self, page_count):
+    def __init__(self, page_count, priority_window=0.8, max_cluster_size=2):
         super().__init__(page_count)
         self._mutex = Lock()
         self._buffer_capacity = page_count
-        self._PRIORITY_WINDOW = 0.6
+        self._PRIORITY_WINDOW = priority_window
         self._psize = int(page_count * self._PRIORITY_WINDOW)
         self._wsize = page_count - self._psize
-        self._MAX_CLUSTER_SIZE = max(4, self._wsize / 4)
+        self._MAX_CLUSTER_SIZE = max_cluster_size
         self._GLOBALTIME = 1
         self._working_q = []
         self._clean_q = []
@@ -20,6 +20,11 @@ class CFDCReplacer(AbstractReplacer):
         self._pages = {} # key=page_id; value=[<is_pinned>, <is_dirty>]
         self._demoted_pin = set() # store pinned pages demoted from working memory
         self._cluster_table = {} # key=cluster-num; value=[<timestamp>, <list-of-pages>]
+
+    def get_replacer_info(self):
+        print(f"Page count = {self._buffer_capacity}\n"
+              f"Working region size = {self._wsize}\n"
+              f"Priority region size = {self._psize}")
 
     @property
     def working_q(self):
@@ -33,31 +38,47 @@ class CFDCReplacer(AbstractReplacer):
     def dirty_q(self):
         return self._dirty_q
 
+    @property
+    def pages(self):
+        return self._pages
+
+    @property
+    def demoted_pin(self):
+        return self._demoted_pin
+
+    @property
+    def cluster_table(self):
+        return self._cluster_table
+
     def pin_page(self, page_id: int):
-        """
-        1. Page in working queue -> adjust its position within working queue
-        2. Page is new to the pool (either a brand new page or a victim evicted from priority region)
-           or in self._demoted_pin
-            a. working queue is not full -> add page to working queue
-            b. working queue is full -> demote
-                First try to demote an unpinned page (move it to priority region)
-                Otherwise, demote a pinned page (move it to self._demoted_pin)
-        """
         self._mutex.acquire()
         # if self.get_buffer_size() == self._buffer_capacity and page_id not in self._pages:
         #     self._mutex.release()
         #     raise ValueError()
+        promoted = INVALID_PAGE_ID
         if page_id in self._working_q:
             self._working_q.remove(page_id)
-        else: # if page_id not in self._pages or page_id in self._demoted_pin:
-            if page_id in self._demoted_pin:
-                self._demoted_pin.remove(page_id)
-            if len(self._working_q) == self._psize:
-                demoted = self.find_page_to_demote()
-                if demoted == INVALID_PAGE_ID: # all pages in working queue are pinned
-                    self._demoted_pin.add(self._working_q.pop(0))
-                else: # an unpinned page needs to be removed from working queue
-                    self.demote(page_id, self._pages[page_id][1])
+        elif page_id in self._demoted_pin:
+            self._demoted_pin.remove(page_id)
+        elif page_id in self._clean_q:
+            self._clean_q.remove(page_id)
+        elif page_id in self._dirty_q:
+            cnum = page_id // self._MAX_CLUSTER_SIZE
+            self._cluster_table[cnum][1].remove(page_id)
+            for e in self._dirty_q:
+                if e[1] == cnum:
+                    tmp = e
+                    self._dirty_q.remove(e)
+                    tmp[0] = 0
+                    heapq.heapify(self._dirty_q)
+                    heapq.heappush(self._dirty_q, tmp)
+                    break
+        if len(self._working_q) == self._wsize:
+            demoted = self.find_page_to_demote()
+            if demoted == INVALID_PAGE_ID: # all pages in working queue are pinned
+                self._demoted_pin.add(self._working_q.pop(0))
+            else: # an unpinned page needs to be removed from working queue
+                self.demote(demoted, self._pages[demoted][1])
         self._working_q.append(page_id)
         self._pages[page_id] = [True, None] # is_dirty set to None as no info on whether a pinned page is clear or dirty
         self._mutex.release()
@@ -75,8 +96,6 @@ class CFDCReplacer(AbstractReplacer):
         if page_id in self._demoted_pin:
             self._demoted_pin.remove(page_id)
             if dirty:
-                cnum = page_id // self._MAX_CLUSTER_SIZE
-                # assuming that priority = timestamp if there is only 1 page in cluster
                 self.demote(page_id, dirty)
             else:
                 self._clean_q.append(page_id)
@@ -89,9 +108,9 @@ class CFDCReplacer(AbstractReplacer):
         """
         self._mutex.acquire()
         victim = INVALID_PAGE_ID
-        if not self._clean_q:
+        if self._clean_q != []:
             victim = self._clean_q.pop(0)
-        elif not self._dirty_q:
+        elif self._dirty_q != []:
             c = heapq.heappop(self._dirty_q) # c = [<priority>, <cluster-number>]
             cluster = self._cluster_table[c[1]][1]
             victim = cluster.pop(0)
@@ -102,7 +121,7 @@ class CFDCReplacer(AbstractReplacer):
                 heapq.heappush(self._dirty_q, c)
         # take the first clean unpinned page
         # if no such page exists in working queue, take the first dirty unpinned page
-        elif not self._working_q:
+        elif self._working_q != []:
             victim = self.find_page_to_demote()
         if victim != INVALID_PAGE_ID:
             self._pages.pop(victim)
