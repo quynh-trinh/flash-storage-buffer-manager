@@ -24,7 +24,7 @@ class RandomReplacer(AbstractReplacer):
     def get_victim(self) -> int:
         self._mutex.acquire()
         if len(self._unpinned_pages) == 0:
-            raise BufferFullError
+            raise BufferFullError()
         victim = self._unpinned_pages[self._random.randint(0, len(self._unpinned_pages)-1)]
         self._unpinned_pages.remove(victim)
         self._mutex.release()

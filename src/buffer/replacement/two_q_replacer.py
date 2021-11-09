@@ -60,6 +60,6 @@ class TwoQReplacer(AbstractReplacer):
             self._pages.pop(victim)
         else:
             self._mutex.release()
-            raise BufferFullError
+            raise BufferFullError()
         self._mutex.release()
         return victim

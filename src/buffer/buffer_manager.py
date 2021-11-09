@@ -1,6 +1,7 @@
 from threading import Lock
 from typing import Tuple
 import time
+from src.buffer.metric_collector import MetricCollector, Metric
 from src.buffer.error import BufferFullError
 from src.buffer.buffer_frame import BufferFrame
 from src.buffer.replacement.abstract_replacer import AbstractReplacer
@@ -11,11 +12,17 @@ from src.util.ReaderWriterLock import ReaderWriterLock
 from src.util.page_id_utils import get_segment_id, get_segment_page_id
 
 class BufferManager():
-    def __init__(self, frame_count: int, page_size: int, replacer: AbstractReplacer, file_manager: FileManager):
+    def __init__(self,
+                 frame_count: int,
+                 page_size: int,
+                 replacer: AbstractReplacer,
+                 file_manager: FileManager,
+                 metric_collector: MetricCollector):
         self._frame_count = frame_count
         self._page_size = page_size
         self._replacer = replacer
         self._file_manager = file_manager
+        self._metric_collector = metric_collector
 
         self._frames_lock = Lock()
         self._frames = [BufferFrame(i, self._page_size) for i in range(self._frame_count)]
@@ -106,9 +113,20 @@ class BufferManager():
     def fix_page(self, page_id: int, exclusive: bool) -> BufferFrame:
         frame_id, frame_to_evict, found_existing = self._find_frame_to_use(page_id)
 
-        if frame_to_evict != None and frame_to_evict.dirty:
-            self._write_frame(frame_to_evict)
-            self._remove_pending_write(frame_to_evict.page_id)
+        self._metric_collector.increment(Metric.BUFFER_MANAGER_ACCESSES)
+        if found_existing:
+            self._metric_collector.increment(Metric.BUFFER_MANAGER_HITS)
+        else:
+            self._metric_collector.increment(Metric.BUFFER_MANAGER_MISSES)
+
+        if frame_to_evict != None:
+            self._metric_collector.increment(Metric.BUFFER_MANAGER_EVICTIONS)
+            if frame_to_evict.dirty:
+                self._metric_collector.increment(Metric.BUFFER_MANAGER_DIRTY_EVICTIONS)
+                self._write_frame(frame_to_evict)
+                self._remove_pending_write(frame_to_evict.page_id)
+            else:
+                self._metric_collector.increment(Metric.BUFFER_MANAGER_CLEAN_EVICTIONS)
         if not found_existing:
             self._read_frame(frame_id)
             self._unlock_frame(frame_id)
