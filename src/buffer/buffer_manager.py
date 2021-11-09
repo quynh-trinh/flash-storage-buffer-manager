@@ -79,7 +79,8 @@ class BufferManager():
                 self._next_unused_frame += 1
             # Get victim from replacer if not in pool
             if frame_id == INVALID_FRAME_ID:
-                frame_id = self._replacer.get_victim()
+                victim_page_id = self._replacer.get_victim()
+                frame_id = self._page_to_frame[victim_page_id]
                 frame_to_evict = self._frames[frame_id].move()
                 del(self._page_to_frame[frame_to_evict.page_id])
                 if frame_to_evict.dirty:
@@ -91,7 +92,7 @@ class BufferManager():
 
             self._use_counters[frame_id].inc()
             self._page_to_frame[page_id] = frame_id
-            self._replacer.pin_page(frame_id)
+            self._replacer.pin_page(page_id)
 
             # If page is new to the pool, update frame metadata
             if not found_existing:
@@ -121,7 +122,7 @@ class BufferManager():
         self._unlock_frame(frame.frame_id)
         counter_val = self._use_counters[frame.frame_id].dec()
         if counter_val == 0:
-            self._replacer.unpin_page(frame.frame_id)
+            self._replacer.unpin_page(frame.page_id)
 
     def _lock_frame(self, frame_id: int, exclusive: bool):
         if exclusive:
