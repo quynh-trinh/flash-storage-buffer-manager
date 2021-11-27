@@ -4,11 +4,12 @@ import os, mmap
 import math
 from src.util.page_id_utils import get_segment_id, get_segment_page_id
 from src.util.constants import PAGE_SIZE
+from src.buffer.file_manager import FileManager
 
 """Implementation of the FileManager interface that doesn't actually do any I/O.
 Can be used for testing buffer manager and replacement policy.
 """
-class DummyFileManager():
+class DummyFileManager(FileManager):
     def __init__(self, directory = 'data', page_size = PAGE_SIZE):
         pass
     

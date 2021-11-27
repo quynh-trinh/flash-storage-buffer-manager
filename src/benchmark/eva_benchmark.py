@@ -10,10 +10,12 @@ from src.buffer.buffer_manager import BufferManager
 from src.buffer.buffer_frame import BufferFrame
 from src.buffer.dummy_file_manager import DummyFileManager
 from src.buffer.replacement.random_replacer import RandomReplacer
+from src.buffer.replacement.cfdc_replacer import CFDCReplacer
 from src.buffer.metric_collector import Metric, MetricCollector
 from src.util.constants import BENCHMARK_DATA_FOLDER
 from src.benchmark.abstract_workload_generator import AbstractWorkloadGenerator, WorkloadGeneratorAction
-from src.benchmark.dummy_workload_generatory import DummyWorkloadGenerator
+from src.benchmark.workload_generators import DummyWorkloadGenerator, OHJWorkloadGenerator
+
 
 class EvaBenchmark(AbstractBenchmark):
     def __init__(self, repetitions, frame_count, replacer, metric_collector, workload_generator: AbstractWorkloadGenerator):
@@ -45,10 +47,12 @@ if __name__ == '__main__':
 
     for i in range(10, 101, 10):
         frame_count = i
-        replacers = [("Random", RandomReplacer(frame_count))]
+        replacers = [("Random", RandomReplacer(frame_count)), ("CFDC", CFDCReplacer(frame_count))]
+        # replacers = [("CFDC", CFDCReplacer(frame_count))]
         for replacer in replacers:
             metric_collector = MetricCollector()
-            workload_generator = DummyWorkloadGenerator()
+            # workload_generator = DummyWorkloadGenerator()
+            workload_generator = OHJWorkloadGenerator()
             benchmark = EvaBenchmark(1, frame_count, replacer[1], metric_collector, workload_generator)
             benchmark.run_benchmark()
 

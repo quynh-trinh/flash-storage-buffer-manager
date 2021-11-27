@@ -16,7 +16,7 @@ class RandomReplacer(AbstractReplacer):
             self._unpinned_pages.remove(page_id)
         self._mutex.release()        
 
-    def unpin_page(self, page_id: int):
+    def unpin_page(self, page_id: int, dirty: bool):
         self._mutex.acquire()
         self._unpinned_pages.append(page_id)
         self._mutex.release()

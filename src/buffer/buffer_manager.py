@@ -140,7 +140,7 @@ class BufferManager():
         self._unlock_frame(frame.frame_id)
         counter_val = self._use_counters[frame.frame_id].dec()
         if counter_val == 0:
-            self._replacer.unpin_page(frame.page_id)
+            self._replacer.unpin_page(frame.page_id, is_dirty)
 
     def _lock_frame(self, frame_id: int, exclusive: bool):
         if exclusive:
