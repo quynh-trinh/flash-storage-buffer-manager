@@ -72,6 +72,10 @@ class CFDCReplacer(AbstractReplacer):
             self._dirty_unpin.remove(page_id)
             cnum = page_id // self._MAX_CLUSTER_SIZE
             self._cluster_table[cnum][1].remove(page_id)
+            cluster_removed = False
+            if len(self._cluster_table[cnum][1]) == 0:
+                self._cluster_table.pop(cnum)
+                cluster_removed = True
             for e in self._dirty_q:
                 if e[1] == cnum:
                     tmp = e
@@ -144,12 +148,11 @@ class CFDCReplacer(AbstractReplacer):
         # if no such page exists in working queue, take the first dirty unpinned page
         elif self._working_q != []:
             victim = self.find_page_to_demote()
-            log.write(f'Get victim {victim} from working queue.\n')
+            # log.write(f'Get victim {victim} from working queue.\n')
             if victim != INVALID_PAGE_ID:
                 self._working_q.remove(victim)
                 self._pages.pop(victim)
         self._mutex.release()
-
         # log.close()
         return victim
 

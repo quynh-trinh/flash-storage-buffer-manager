@@ -9,6 +9,8 @@ class BufferFrame():
         self._page_size = page_size
         self._exclusive = False
         self._data = mmap.mmap(-1, self._page_size)
+        # Make sure the memory is allocated
+        self._data.write(bytes(self._page_size))
     
     def __del__(self):
         self._data.close()
