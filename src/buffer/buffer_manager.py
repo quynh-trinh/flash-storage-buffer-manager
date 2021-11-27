@@ -1,6 +1,7 @@
 from threading import Lock
 from typing import Tuple
 import time
+
 from src.buffer.metric_collector import MetricCollector, Metric
 from src.buffer.error import BufferFullError
 from src.buffer.buffer_frame import BufferFrame
@@ -25,7 +26,9 @@ class BufferManager():
         self._metric_collector = metric_collector
 
         self._frames_lock = Lock()
-        self._frames = [BufferFrame(i, self._page_size) for i in range(self._frame_count)]
+        self._frames = []
+        for i in range(self._frame_count):
+            self._frames.append(BufferFrame(i, self._page_size))
         self._page_to_frame = dict()
         self._next_unused_frame = 0
 
@@ -109,6 +112,21 @@ class BufferManager():
                 self._lock_frame(frame_id, True)
 
             return frame_id, frame_to_evict, found_existing
+    
+    """ Returns true if it is safe to fix a page.
+        Not thread safe.
+    """
+    def safe_to_fix_page(self, page_id: int, exclusive: bool) -> bool:
+        if exclusive \
+           and page_id in self._page_to_frame\
+           and self._use_counters[self._page_to_frame[page_id]].value > 0:
+                return False
+        if not exclusive \
+           and page_id in self._page_to_frame \
+           and self._use_counters[self._page_to_frame[page_id]].value > 0 \
+           and self._frames[self._page_to_frame[page_id]].exclusive:
+                return False
+        return True
 
     def fix_page(self, page_id: int, exclusive: bool) -> BufferFrame:
         frame_id, frame_to_evict, found_existing = self._find_frame_to_use(page_id)
@@ -140,7 +158,7 @@ class BufferManager():
         self._unlock_frame(frame.frame_id)
         counter_val = self._use_counters[frame.frame_id].dec()
         if counter_val == 0:
-            self._replacer.unpin_page(frame.page_id)
+            self._replacer.unpin_page(frame.page_id, is_dirty)
 
     def _lock_frame(self, frame_id: int, exclusive: bool):
         if exclusive:

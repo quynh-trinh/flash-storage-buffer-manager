@@ -62,16 +62,21 @@ class CFDCReplacer(AbstractReplacer):
             self._demoted_pin.remove(page_id)
         elif page_id in self._clean_q:
             self._clean_q.remove(page_id)
-        elif page_id in self._dirty_q:
+        elif page_id in self._pages:
             cnum = page_id // self._MAX_CLUSTER_SIZE
             self._cluster_table[cnum][1].remove(page_id)
+            cluster_removed = False
+            if len(self._cluster_table[cnum][1]) == 0:
+                self._cluster_table.pop(cnum)
+                cluster_removed = True
             for e in self._dirty_q:
                 if e[1] == cnum:
                     tmp = e
                     self._dirty_q.remove(e)
-                    tmp[0] = 0
-                    heapq.heapify(self._dirty_q)
-                    heapq.heappush(self._dirty_q, tmp)
+                    if not cluster_removed:
+                        tmp[0] = 0
+                        heapq.heapify(self._dirty_q)
+                        heapq.heappush(self._dirty_q, tmp)
                     break
         if len(self._working_q) == self._wsize:
             demoted = self.find_page_to_demote()
@@ -156,7 +161,7 @@ class CFDCReplacer(AbstractReplacer):
                 heapq.heappush(self._dirty_q, [priority, cnum])
             else:
                 timestamp = self._cluster_table[cnum][0]
-                self._cluster_table[cnum][1] = + page_id
+                self._cluster_table[cnum][1].append(page_id)
                 cluster = self._cluster_table[cnum][1]
                 s = 0
                 for i in range(1, len(cluster)):

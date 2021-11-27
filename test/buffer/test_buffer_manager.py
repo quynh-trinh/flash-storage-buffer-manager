@@ -18,7 +18,8 @@ class BufferManagerTest(unittest.TestCase):
     def setUp(self):
         files = glob.glob('data/*')
         for f in files:
-            os.remove(f)
+            if os.path.isfile(f):
+                os.remove(f)
 
     def test_should_fix_page(self):
         frame_count = 10
