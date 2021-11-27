@@ -77,7 +77,7 @@ def setup():
             file_manager.write_block(file_name, (212 * VIDEO_PAGE_SIZE) / PAGE_SIZE, mm)
 
 if __name__ == '__main__':
-    metrics_df = pd.DataFrame(columns=['algorithm', 'relative_buffer_pool_size', 'num_hits', 'num_misses', 'num_accesses', 'num_dirty_evictions'])
+    metrics_df = pd.DataFrame(columns=['algorithm', 'relative_buffer_pool_size', 'num_hits', 'num_misses', 'num_accesses', 'num_dirty_evictions', 'num_evictions'])
 
     # Only needs to be done once
     # setup()
@@ -102,6 +102,7 @@ if __name__ == '__main__':
                                             'num_misses': metric_collector.get_metric(Metric.BUFFER_MANAGER_MISSES),
                                             'num_accesses': metric_collector.get_metric(Metric.BUFFER_MANAGER_ACCESSES),
                                             'num_dirty_evictions': metric_collector.get_metric(Metric.BUFFER_MANAGER_DIRTY_EVICTIONS),
+                                            'num_evictions': metric_collector.get_metric(Metric.BUFFER_MANAGER_EVICTIONS)
                                             },
                                             ignore_index=True)
             metrics_df.to_csv(f'{BENCHMARK_DATA_FOLDER}/eva_trace_benchmark.csv')
