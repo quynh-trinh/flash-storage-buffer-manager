@@ -3,6 +3,8 @@ from typing import Tuple, Iterator
 from enum import Enum
 from numpy.random import seed
 from numpy.random import randint
+from numpy.random import default_rng
+import numpy as np
 
 from src.benchmark.abstract_workload_generator \
     import AbstractWorkloadGenerator, WorkloadGeneratorAction, RequestType
@@ -41,32 +43,46 @@ class OHJWorkloadGenerator(AbstractWorkloadGenerator):
         # self.scan_length = 5
         # self.total_calls = (self.num_single_pages + self.num_scans) * 2
 
+        self._random_generator = default_rng(seed=12345)
+        # seed(12345)
+        # self._random_reads = list(randint(0, self.total_pages, self.num_single_pages))
+        self._random_reads = self._random_generator.uniform(0, self.total_pages+1, self.num_single_pages).astype(np.int64)
+        self._curr_random_read = 0
+        # self._random_writes = list(randint(0, self.total_pages, self.num_single_pages))
+        self._random_writes = self._random_generator.uniform(0, self.total_pages+1, self.num_single_pages).astype(np.int64)
+        self._curr_random_write = 0
+
+        # self._seq_reads = list(randint(0, self.total_pages - self.scan_length, self.num_scans))
+        self._seq_reads = self._random_generator.uniform(0, self.total_pages+1-self.scan_length, self.num_scans).astype(np.int64)
+        self._curr_seq_read = 0
+        # self._seq_writes = list(randint(0, self.total_pages - self.scan_length, self.num_scans))
+        self._seq_writes = self._random_generator.uniform(0, self.total_pages+1-self.scan_length, self.num_scans).astype(np.int64)
+        self._curr_seq_write = 0
+
+        # self._types = randint(1, 5, self.total_calls)
+        self._types = self._random_generator.uniform(1, 5, self.total_calls).astype(np.int64)
+
     def get_actions(self) -> Iterator[Tuple[WorkloadGeneratorAction, int, bool]]:
-        seed(1)
-        random_reads = list(randint(0, self.total_pages, self.num_single_pages))
-        random_writes = list(randint(0, self.total_pages, self.num_single_pages))
-
-        seq_reads = list(randint(0, self.total_pages - self.scan_length, self.num_scans))
-        seq_writes = list(randint(0, self.total_pages - self.scan_length, self.num_scans))
-
-        types = randint(1, 5, self.total_calls)
-
-        for type in types:
-            if type == 1 and random_reads != []: # random read
-                page = random_reads.pop(-1)
+        for type in self._types:
+            if type == 1 and self._curr_random_read != self.num_single_pages - 1: # random read
+                page = self._random_reads[self._curr_random_read]
+                self._curr_random_read += 1
                 yield (WorkloadGeneratorAction.FIX_PAGE, page, False)
                 yield (WorkloadGeneratorAction.UNFIX_PAGE, page, False)
-            elif type == 2 and random_writes != []: # random write
-                page = random_writes.pop(-1)
+            elif type == 2 and self._curr_random_write != self.num_single_pages - 1: # random write
+                page = self._random_writes[self._curr_random_write]
+                self._curr_random_write += 1
                 yield (WorkloadGeneratorAction.FIX_PAGE, page, True)
                 yield (WorkloadGeneratorAction.UNFIX_PAGE, page, True)
-            elif type == 3 and seq_reads != []: # sequential read
-                start_page = seq_reads.pop(-1)
+            elif type == 3 and self._curr_seq_read != self.num_scans - 1: # sequential read
+                start_page = self._seq_reads[self._curr_seq_read]
+                self._curr_seq_read += 1
                 for i in range(0, self.scan_length):
                     yield (WorkloadGeneratorAction.FIX_PAGE, start_page + i, False)
                     yield (WorkloadGeneratorAction.UNFIX_PAGE, start_page + i, False)
-            elif type == 4 and seq_writes != []:  # sequential read
-                start_page = seq_writes.pop(-1)
+            elif type == 4 and self._curr_seq_write != self.num_scans - 1:  # sequential read
+                start_page = self._seq_writes[self._curr_seq_write]
+                self._curr_seq_write += 1
                 for i in range(0, self.scan_length):
                     yield (WorkloadGeneratorAction.FIX_PAGE, start_page + i, True)
                     yield (WorkloadGeneratorAction.UNFIX_PAGE, start_page + i, True)

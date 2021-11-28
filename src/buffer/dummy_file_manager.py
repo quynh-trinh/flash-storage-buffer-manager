@@ -22,8 +22,8 @@ class DummyFileManager(FileManager):
     def remove_file(self, file_name: str):
         pass
 
-    def read_block(self, file_name: str, page_id: int, dest: mmap.mmap):
+    def read_block(self, file_name: str, page_id: int, dest: bytearray):
         pass
 
-    def write_block(self, file_name: str, page_id: int, src: mmap.mmap):
+    def write_block(self, file_name: str, page_id: int, src: bytearray):
         pass

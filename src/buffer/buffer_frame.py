@@ -2,18 +2,23 @@ from __future__ import annotations
 import mmap
 
 class BufferFrame():
-    def __init__(self, frame_id: int, page_size: int):
+    def __init__(self, frame_id: int, page_size: int, data: bytearray = None):
         self._dirty = False
         self._page_id = -1
         self._frame_id = frame_id
         self._page_size = page_size
         self._exclusive = False
-        self._data = mmap.mmap(-1, self._page_size)
+        # self._data = mmap.mmap(-1, self._page_size)
         # Make sure the memory is allocated
-        self._data.write(bytes(self._page_size))
+        # self._data.write(bytes(self._page_size))
+        if data != None:
+            self._data = data
+        else:
+            self._data = bytearray(self._page_size)
     
     def __del__(self):
-        self._data.close()
+        # self._data.close()
+        pass
 
     @property
     def dirty(self) -> bool:
@@ -48,19 +53,19 @@ class BufferFrame():
         self._exclusive = is_exclusive
 
     @property
-    def data(self) -> mmap:
+    def data(self) -> bytearray:
         return self._data
     
     @data.setter
-    def data(self, data: mmap):
+    def data(self, data: bytearray):
         self._data = data
     
     def move(self) -> BufferFrame:
-        copy = BufferFrame(self._frame_id, self._page_size)
+        copy = BufferFrame(self._frame_id, self._page_size, self._data)
         copy.dirty = self._dirty
         copy.page_id = self._page_id
 
-        copy.data = self._data
-        new_data = mmap.mmap(-1, self._page_size)
+        # new_data = mmap.mmap(-1, self._page_size)
+        new_data = bytearray(self._page_size)
         self._data = new_data
         return copy

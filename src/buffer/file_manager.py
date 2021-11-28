@@ -16,6 +16,7 @@ class FileManager():
         self._file_handles: Dict[str, int] = {}
         self._lock_table_lock = Lock()
         self._lock_table: Dict[str, Lock] = {}
+        self._buffers: Dict[str, mmap.mmap] = {}
     
     def __del__(self):
         for file_path, handle in self._file_handles.items():
@@ -31,6 +32,7 @@ class FileManager():
                 self._file_handles[file_path] = os.open(file_path, 
                                                     os.O_CREAT | os.O_RDWR | os.O_DIRECT)
                 self._lock_table[file_path] = Lock()
+                self._buffers[file_path] = mmap.mmap(-1, self._page_size)
             return self._file_handles[file_path]
 
     def create_file(self, file_name: str):
@@ -48,6 +50,7 @@ class FileManager():
             os.remove(file_path)
             del self._file_handles[file_path]
             del self._lock_table[file_path]
+            del self._buffers[file_path]
     
     def _file_size(self, file_name: str):
         file_path = self._get_file_path(file_name)
@@ -64,21 +67,23 @@ class FileManager():
             os.lseek(self._file_handles[file_path], 0, os.SEEK_END)
             os.write(self._file_handles[file_path], mm)
 
-    def read_block(self, file_name: str, page_id: int, dest: mmap.mmap):
+    def read_block(self, file_name: str, page_id: int, dest: bytearray):
         self._open_file(file_name)
         file_path = self._get_file_path(file_name)
         with self._lock_table[file_path]:
             fd = os.open(file_path, os.O_CREAT | os.O_RDWR | os.O_DIRECT)
             with os.fdopen(fd, "rb+", 0) as file_obj:
                 file_obj.seek(page_id * self._page_size, os.SEEK_SET)
-                file_obj.readinto(dest)
+                file_obj.readinto(self._buffers[file_path])
+                dest[:] = self._buffers[file_path][:]
 
-    def write_block(self, file_name: str, page_id: int, src: mmap.mmap):
+    def write_block(self, file_name: str, page_id: int, src: bytearray):
         self._open_file(file_name)
         file_path = self._get_file_path(file_name)
         with self._lock_table[file_path]:
             offset = page_id * self._page_size
             if(self._file_size(file_name) < offset + self._page_size):
                 self._grow_file(file_name, offset + self._page_size)
+            self._buffers[file_path][:] = src[:]
             os.lseek(self._file_handles[file_path], offset, os.SEEK_SET)
-            os.write(self._file_handles[file_path], src)
+            os.write(self._file_handles[file_path], self._buffers[file_path])

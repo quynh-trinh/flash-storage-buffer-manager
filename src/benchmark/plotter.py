@@ -50,9 +50,9 @@ def do_plot(benchmark_name: str,
 
 def plot(benchmark_name: str):
     if benchmark_name == 'trace':
-        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/eva_trace_benchmark.csv'
+        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/trace.csv'
     elif benchmark_name == 'synthetic':
-        csv_file_name = ''
+        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/synthetic.csv'
     else:
         raise ValueError("benchmark_name must be 'trace' or 'synthetic'")
     df = pd.read_csv(csv_file_name)
