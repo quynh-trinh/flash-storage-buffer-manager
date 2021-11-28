@@ -87,7 +87,8 @@ class CFDCReplacer(AbstractReplacer):
                 if (self._pages[demoted][1]):
                     self._dirty_unpin.add(demoted)
         self._working_q[page_id] = None
-        self._pages[page_id] = [True, None] # is_dirty set to None as no info on whether a pinned page is clear or dirty
+        state = None if page_id not in self._pages else self._pages[page_id][1]
+        self._pages[page_id] = [True, state] # is_dirty set to None as no info on whether a pinned page is clear or dirty
         self._mutex.release()
 
     def unpin_page(self, page_id: int, dirty: bool):

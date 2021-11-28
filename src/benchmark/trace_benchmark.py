@@ -24,10 +24,10 @@ from src.benchmark.eva_trace_workload_generator import EvaTraceWorkloadGenerator
 
 VIDEO_PAGE_SIZE = 4 * 2 ** 20
 DATA_FOLDER = "data/eva_benchmark/"
-WITH_TIMING = False
+WITH_TIMING = True
 
 class EvaBenchmark(AbstractBenchmark):
-    def __init__(self, repetitions, frame_count, replacer, metric_collector, workload_generator: AbstractWorkloadGenerator):
+    def __init__(self, repetitions, frame_count, replacer, metric_collector):
         super().__init__(repetitions=repetitions)
         self._metric_collector = metric_collector
         self._metric_collector.reset()
@@ -38,7 +38,7 @@ class EvaBenchmark(AbstractBenchmark):
             self._file_manager = FileManager(page_size=VIDEO_PAGE_SIZE)
         else:
             self._file_manager = DummyFileManager(page_size=VIDEO_PAGE_SIZE)
-        self._workload_generator = workload_generator
+        self._workload_generator = EvaTraceWorkloadGenerator(total_requests=total_requests, read_ratio=0.9)
         self._data_folder = "data/eva_benchmark"
         
         self._random_generator = default_rng(seed=12345)
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     metrics_df = pd.DataFrame(columns=['algorithm', 'relative_buffer_pool_size', 'num_hits', 'num_misses', 'num_accesses', 'num_dirty_evictions', 'num_evictions'])
 
     # Only needs to be done once
-    setup()
+    # setup()
 
     total_pages_needed = 4 * 212
     for i in range(10, 101, 10):
@@ -94,11 +94,11 @@ if __name__ == '__main__':
         replacers = [("Random", RandomReplacer(frame_count)),
                      ("2Q", TwoQReplacer(frame_count)),
                      ("LRU", LRUReplacer(frame_count)),
-                     ("CFDC", CFDCReplacer(frame_count))]
+                     ("CFDC", CFDCReplacer(frame_count, max_cluster_size=2))]
         for replacer in replacers:
             metric_collector = MetricCollector()
-            workload_generator = EvaTraceWorkloadGenerator()
-            benchmark = EvaBenchmark(3 if WITH_TIMING else 1, frame_count, replacer[1], metric_collector, workload_generator)
+            total_requests = 10000 if WITH_TIMING else 100000
+            benchmark = EvaBenchmark(3 if WITH_TIMING else 1, frame_count, replacer[1], metric_collector)
             benchmark.run_benchmark()
 
             if WITH_TIMING:
