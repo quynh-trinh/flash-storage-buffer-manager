@@ -6,6 +6,7 @@ from numpy.random import randint
 from numpy.random import default_rng
 import numpy as np
 
+
 from src.benchmark.abstract_workload_generator \
     import AbstractWorkloadGenerator, WorkloadGeneratorAction, RequestType
 
@@ -46,21 +47,33 @@ class OHJWorkloadGenerator(AbstractWorkloadGenerator):
         self._random_generator = default_rng(seed=12345)
         # seed(12345)
         # self._random_reads = list(randint(0, self.total_pages, self.num_single_pages))
-        self._random_reads = self._random_generator.uniform(0, self.total_pages+1, self.num_single_pages).astype(np.int64)
+        self._random_reads = self.generate_self_similar_distribution(0, self.total_pages+1, size=self.num_single_pages)
         self._curr_random_read = 0
         # self._random_writes = list(randint(0, self.total_pages, self.num_single_pages))
-        self._random_writes = self._random_generator.uniform(0, self.total_pages+1, self.num_single_pages).astype(np.int64)
+        self._random_writes = self.generate_self_similar_distribution(0, self.total_pages+1, size=self.num_single_pages)
         self._curr_random_write = 0
 
         # self._seq_reads = list(randint(0, self.total_pages - self.scan_length, self.num_scans))
-        self._seq_reads = self._random_generator.uniform(0, self.total_pages+1-self.scan_length, self.num_scans).astype(np.int64)
+        self._seq_reads = self._random_generator.uniform(0, self.total_pages+1-self.scan_length, size=self.num_scans).astype(np.int64)
         self._curr_seq_read = 0
         # self._seq_writes = list(randint(0, self.total_pages - self.scan_length, self.num_scans))
-        self._seq_writes = self._random_generator.uniform(0, self.total_pages+1-self.scan_length, self.num_scans).astype(np.int64)
+        self._seq_writes = self._random_generator.uniform(0, self.total_pages+1-self.scan_length, size=self.num_scans).astype(np.int64)
         self._curr_seq_write = 0
 
         # self._types = randint(1, 5, self.total_calls)
-        self._types = self._random_generator.uniform(1, 5, self.total_calls).astype(np.int64)
+        self._types = []
+        self._types += [1] * self.num_single_pages
+        self._types += [2] * self.num_single_pages
+        self._types += [3] * self.num_scans
+        self._types += [4] * self.num_scans
+        self._random_generator.shuffle(self._types)
+    
+    def generate_self_similar_distribution(self, lo, hi, skew=0.2, size=1):
+        range = hi - lo
+        s = self._random_generator.uniform(0.0, 1.0, size)
+
+        s = (lo + (range * s ** (np.log(skew) / np.log(1 - skew)))).astype(np.int64)
+        return s
 
     def get_actions(self) -> Iterator[Tuple[WorkloadGeneratorAction, int, bool]]:
         for type in self._types:

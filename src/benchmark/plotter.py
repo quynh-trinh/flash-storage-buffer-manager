@@ -66,7 +66,8 @@ def plot(benchmark_name: str):
     for context in ['talk', 'poster']:
         for graph_info in [
             ['hit_rate', 'Hit Rate (%)'],
-            ['num_dirty_evictions', 'Dirty Evictions']
+            ['num_dirty_evictions', 'Dirty Evictions'],
+            ['time', 'Execution Time (s)']
         ]:
             do_plot(benchmark_name, df, context, 'relative_buffer_pool_size', graph_info[0], 'Buffer pool size relative to dataset size (%)', graph_info[1])
 

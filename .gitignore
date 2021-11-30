@@ -136,3 +136,5 @@ dmypy.json
 .idea/
 .DS_Store
 
+# Include traces directory
+!traces/*.log
