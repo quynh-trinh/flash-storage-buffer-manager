@@ -49,8 +49,16 @@ def do_plot(benchmark_name: str,
     plt.savefig(f'{BENCHMARK_DATA_FOLDER}/{benchmark_name}_{y_axis_column}_{context}.png', bbox_inches='tight', dpi=dpi)
 
 def plot(benchmark_name: str):
-    if benchmark_name == 'trace':
-        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/trace.csv'
+    x_column = 'relative_buffer_pool_size'
+    x_label = 'Buffer pool size relative to dataset size (%)'
+    if benchmark_name == 'trace_90p_reads':
+        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/trace_90p_reads_timing.csv'
+    elif benchmark_name == 'trace_20p_reads':
+        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/trace_20p_reads_timing.csv'
+    elif benchmark_name == 'read_ratio':
+        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/read_ratio_timing.csv'
+        x_column = 'percent_reads'
+        x_label = 'Percent of accesses that are reads (%)'
     elif benchmark_name == 'synthetic':
         csv_file_name = f'{BENCHMARK_DATA_FOLDER}/synthetic.csv'
     else:
@@ -69,12 +77,14 @@ def plot(benchmark_name: str):
             ['num_dirty_evictions', 'Dirty Evictions'],
             ['time', 'Execution Time (s)']
         ]:
-            do_plot(benchmark_name, df, context, 'relative_buffer_pool_size', graph_info[0], 'Buffer pool size relative to dataset size (%)', graph_info[1])
+            do_plot(benchmark_name, df, context, x_column, graph_info[0], x_label, graph_info[1])
 
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        plot('trace')
+        plot('trace_90p_reads')
+        plot('trace_20p_reads')
+        plot('read_ratio')
         plot('synthetic')
     else:
         plot(sys.argv[1])
