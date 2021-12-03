@@ -128,14 +128,15 @@ class BufferManager():
                 return False
         return True
 
-    def fix_page(self, page_id: int, exclusive: bool) -> BufferFrame:
+    def fix_page(self, page_id: int, exclusive: bool, is_prefetch=False) -> BufferFrame:
         frame_id, frame_to_evict, found_existing = self._find_frame_to_use(page_id)
 
-        self._metric_collector.increment(Metric.BUFFER_MANAGER_ACCESSES)
-        if found_existing:
-            self._metric_collector.increment(Metric.BUFFER_MANAGER_HITS)
-        else:
-            self._metric_collector.increment(Metric.BUFFER_MANAGER_MISSES)
+        if not is_prefetch:
+            self._metric_collector.increment(Metric.BUFFER_MANAGER_ACCESSES)
+            if found_existing:
+                self._metric_collector.increment(Metric.BUFFER_MANAGER_HITS)
+            else:
+                self._metric_collector.increment(Metric.BUFFER_MANAGER_MISSES)
 
         if frame_to_evict != None:
             self._metric_collector.increment(Metric.BUFFER_MANAGER_EVICTIONS)
@@ -149,7 +150,8 @@ class BufferManager():
             self._read_frame(frame_id)
             self._unlock_frame(frame_id)
         
-        self._lock_frame(frame_id, exclusive)
+        if not is_prefetch:
+            self._lock_frame(frame_id, exclusive)
         return self._frames[frame_id]
 
     def unfix_page(self, frame: BufferFrame, is_dirty: bool):

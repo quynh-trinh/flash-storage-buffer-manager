@@ -25,6 +25,7 @@ from src.benchmark.eva_trace_workload_generator import EvaTraceWorkloadGenerator
 VIDEO_PAGE_SIZE = 4 * 2 ** 20
 DATA_FOLDER = "data/eva_benchmark/"
 WITH_TIMING = False
+PREFETCHING_DEPTH = 3
 
 class EvaBenchmark(AbstractBenchmark):
     def __init__(self, repetitions, frame_count, replacer, metric_collector, read_ratio):
@@ -68,6 +69,10 @@ class EvaBenchmark(AbstractBenchmark):
             if action[0] == WorkloadGeneratorAction.FIX_PAGE:
                 # print(f"Fix page   {action[1]:15} exclusive: {action[2]}")
                 self._frames[action[1]] = self._buffer_manager.fix_page(action[1], action[2])
+                for i in range(PREFETCHING_DEPTH):
+                    prefetched_page_id = action[1] + i
+                    if self._buffer_manager.safe_to_fix_page(prefetched_page_id, action[2]):
+                        self._frames[prefetched_page_id] = self._buffer_manager.fix_page(prefetched_page_id, action[2], is_prefetch=True)
             else:
                 # print(f"Unfix page {action[1]:15} dirty:     {action[2]}")
                 self._buffer_manager.unfix_page(self._frames[action[1]], action[2])
