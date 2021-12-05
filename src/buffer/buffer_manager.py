@@ -67,11 +67,17 @@ class BufferManager():
         with self._pending_writes_lock:
             self._pending_writes.discard(page_id)
     
+    """ Returns true if a page is present in the buffer pool
+    and false otherwise
+    """
+    def page_present(self, page_id: int) -> bool:
+        return page_id in self._page_to_frame
+    
     """ Finds a free frame from the frame pool
     Returns the id of the free frame and a copy of the evicted frame,
     if a frame was evicted to make room for the new one.
     """
-    def _find_frame_to_use(self, page_id: int) -> Tuple[int, BufferFrame, bool]:
+    def _find_frame_to_use(self, page_id: int, is_prefetch=False) -> Tuple[int, BufferFrame, bool]:
         frame_id = INVALID_FRAME_ID
         frame_to_evict = None
         found_existing = False
@@ -102,7 +108,8 @@ class BufferManager():
 
             self._use_counters[frame_id].inc()
             self._page_to_frame[page_id] = frame_id
-            self._replacer.pin_page(page_id)
+            if not is_prefetch:
+                self._replacer.pin_page(page_id)
 
             # If page is new to the pool, update frame metadata
             if not found_existing:
@@ -128,14 +135,15 @@ class BufferManager():
                 return False
         return True
 
-    def fix_page(self, page_id: int, exclusive: bool) -> BufferFrame:
-        frame_id, frame_to_evict, found_existing = self._find_frame_to_use(page_id)
+    def fix_page(self, page_id: int, exclusive: bool, is_prefetch=False) -> BufferFrame:
+        frame_id, frame_to_evict, found_existing = self._find_frame_to_use(page_id, is_prefetch)
 
-        self._metric_collector.increment(Metric.BUFFER_MANAGER_ACCESSES)
-        if found_existing:
-            self._metric_collector.increment(Metric.BUFFER_MANAGER_HITS)
-        else:
-            self._metric_collector.increment(Metric.BUFFER_MANAGER_MISSES)
+        if not is_prefetch:
+            self._metric_collector.increment(Metric.BUFFER_MANAGER_ACCESSES)
+            if found_existing:
+                self._metric_collector.increment(Metric.BUFFER_MANAGER_HITS)
+            else:
+                self._metric_collector.increment(Metric.BUFFER_MANAGER_MISSES)
 
         if frame_to_evict != None:
             self._metric_collector.increment(Metric.BUFFER_MANAGER_EVICTIONS)
@@ -152,12 +160,12 @@ class BufferManager():
         self._lock_frame(frame_id, exclusive)
         return self._frames[frame_id]
 
-    def unfix_page(self, frame: BufferFrame, is_dirty: bool):
+    def unfix_page(self, frame: BufferFrame, is_dirty: bool, is_prefetch=False):
         frame.dirty = frame.dirty or is_dirty
         
         self._unlock_frame(frame.frame_id)
         counter_val = self._use_counters[frame.frame_id].dec()
-        if counter_val == 0:
+        if counter_val == 0 and not is_prefetch:
             self._replacer.unpin_page(frame.page_id, is_dirty)
 
     def _lock_frame(self, frame_id: int, exclusive: bool):

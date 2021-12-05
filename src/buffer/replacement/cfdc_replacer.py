@@ -5,6 +5,7 @@ from collections import OrderedDict
 from typing import OrderedDict
 from src.util.constants import INVALID_PAGE_ID
 from src.buffer.replacement.abstract_replacer import AbstractReplacer
+from src.buffer.error import BufferFullError
 from pqdict import pqdict
 
 class CFDCReplacer(AbstractReplacer):
@@ -145,6 +146,8 @@ class CFDCReplacer(AbstractReplacer):
                 self._pages.pop(victim)
         self._mutex.release()
         # log.close()
+        if victim == INVALID_PAGE_ID:
+            raise BufferFullError()
         return victim
 
     def find_page_to_demote(self) -> int:
@@ -177,7 +180,7 @@ class CFDCReplacer(AbstractReplacer):
                 s = 0
                 for i in range(1, len(cluster)):
                     s += abs(cluster[i] - cluster[i - 1])
-                priority = s / (len(cluster) ** 2 * (self._GLOBALTIME - timestamp))
+                priority = s / (len(cluster) ** 2 * max(self._GLOBALTIME - timestamp, 1))
                 self._dirty_q.updateitem(cnum, priority)
         else:
             self._clean_q[page_id] = None
