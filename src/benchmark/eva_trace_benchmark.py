@@ -17,6 +17,7 @@ from src.buffer.replacement.random_replacer import RandomReplacer
 from src.buffer.replacement.two_q_replacer import TwoQReplacer
 from src.buffer.replacement.lru_replacer import LRUReplacer
 from src.buffer.replacement.cfdc_replacer import CFDCReplacer
+from src.buffer.replacement.acr_replacer import ACRReplacer
 from src.buffer.metric_collector import Metric, MetricCollector
 from src.util.constants import BENCHMARK_DATA_FOLDER, PAGE_SIZE
 from src.benchmark.abstract_workload_generator import AbstractWorkloadGenerator, WorkloadGeneratorAction
@@ -86,10 +87,12 @@ if __name__ == '__main__':
     for i in range(10, 101, 10):
         frame_count = int(total_pages_needed * i/100)
         print(f"Frame count: {frame_count}")
-        replacers = [("Random", RandomReplacer(frame_count)),
-                     ("2Q", TwoQReplacer(frame_count)),
-                     ("LRU", LRUReplacer(frame_count)),
-                     ("CFDC", CFDCReplacer(frame_count))]
+        # replacers = [("Random", RandomReplacer(frame_count)),
+        #              ("2Q", TwoQReplacer(frame_count)),
+        #              ("LRU", LRUReplacer(frame_count)),
+        #              ("CFDC", CFDCReplacer(frame_count)),
+        #              ("ACR", ACRReplacer(frame_count))]
+        replacers = [("ACR", ACRReplacer(frame_count))]
         for replacer in replacers:
             metric_collector = MetricCollector()
             workload_generator = EvaTraceWorkloadGenerator()
