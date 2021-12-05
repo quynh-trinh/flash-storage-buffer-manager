@@ -25,6 +25,7 @@ from src.benchmark.eva_trace_workload_generator import EvaTraceWorkloadGenerator
 VIDEO_PAGE_SIZE = 4 * 2 ** 20
 DATA_FOLDER = "data/eva_benchmark/"
 WITH_TIMING = False
+PREFETCHING_DEPTH = 2
 
 class EvaBenchmark(AbstractBenchmark):
     def __init__(self, repetitions, frame_count, replacer, metric_collector, read_ratio):
@@ -68,6 +69,12 @@ class EvaBenchmark(AbstractBenchmark):
             if action[0] == WorkloadGeneratorAction.FIX_PAGE:
                 # print(f"Fix page   {action[1]:15} exclusive: {action[2]}")
                 self._frames[action[1]] = self._buffer_manager.fix_page(action[1], action[2])
+                for i in range(1, PREFETCHING_DEPTH+1):
+                    prefetched_page_id = action[1] + i
+                    if not self._buffer_manager.page_present(prefetched_page_id) and self._buffer_manager.safe_to_fix_page(prefetched_page_id, False):
+                        # print(f"Prefetch Fix page   {prefetched_page_id:15} exclusive: False")
+                        self._frames[prefetched_page_id] = self._buffer_manager.fix_page(prefetched_page_id, False, is_prefetch=True)
+                        self._buffer_manager.unfix_page(self._frames[prefetched_page_id], False, is_prefetch=True)
             else:
                 # print(f"Unfix page {action[1]:15} dirty:     {action[2]}")
                 self._buffer_manager.unfix_page(self._frames[action[1]], action[2])
@@ -89,7 +96,7 @@ if __name__ == '__main__':
 
     total_pages_needed = 4 * 212
     # max_size = 51 if WITH_TIMING else 101
-    for read_ratio in [0.9, 0.2]:
+    for read_ratio in [0.9]:
         metrics_df = pd.DataFrame(columns=['algorithm', 'relative_buffer_pool_size', 'num_hits', 'num_misses', 'num_accesses', 'num_dirty_evictions', 'num_evictions'])
         for i in range(10, 101, 10):
             frame_count = int(total_pages_needed * i/100)
@@ -125,4 +132,4 @@ if __name__ == '__main__':
                                                     'num_evictions': metric_collector.get_metric(Metric.BUFFER_MANAGER_EVICTIONS),
                                                     },
                                                     ignore_index=True)
-                metrics_df.to_csv(f'{BENCHMARK_DATA_FOLDER}/trace_{int(read_ratio*100)}p_reads_timing.csv')
+                metrics_df.to_csv(f'{BENCHMARK_DATA_FOLDER}/prefetching_trace.csv')

@@ -34,23 +34,27 @@ def do_plot(benchmark_name: str,
     # fig, line_plot = plt.subplots(figsize = fig_size, dpi = dpi)
     fig, line_plot = plt.subplots(figsize = fig_size)
     line_plot.grid(axis='y')
+    style = 'Algorithm' if 'Prefetching' not in df.columns else 'Prefetching'
     line_plot = sns.lineplot(x=x_axis_column,
                             y=y_axis_column,
-                            hue='algorithm',
-                            style='algorithm',
+                            hue='Algorithm',
+                            style=style,
                             markers=True,
                             ci=None,
                             data=df,
                             palette=sns.color_palette('tab10', n_colors=4))
     line_plot.set_xlabel(x_label)
     line_plot.set_ylabel(y_label)
-    line_plot.legend(bbox_to_anchor=(1,1), loc='upper left', title = 'Algorithm')
+    legend_title = 'Algorithm' if 'Prefetching' not in df.columns else None
+    line_plot.legend(bbox_to_anchor=(1,1), loc='upper left', title = legend_title)
     sns.despine()
     plt.savefig(f'{BENCHMARK_DATA_FOLDER}/{benchmark_name}_{y_axis_column}_{context}.png', bbox_inches='tight', dpi=dpi)
+    plt.close(fig)
 
 def plot(benchmark_name: str):
     x_column = 'relative_buffer_pool_size'
     x_label = 'Buffer pool size relative to dataset size (%)'
+    non_prefetching_csv_file_name = None
     if benchmark_name == 'trace_90p_reads':
         csv_file_name = f'{BENCHMARK_DATA_FOLDER}/trace_90p_reads_timing.csv'
     elif benchmark_name == 'trace_20p_reads':
@@ -61,14 +65,28 @@ def plot(benchmark_name: str):
         x_label = 'Percent of accesses that are reads (%)'
     elif benchmark_name == 'synthetic':
         csv_file_name = f'{BENCHMARK_DATA_FOLDER}/synthetic.csv'
+    elif benchmark_name == 'prefetching_trace':
+        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/prefetching_trace.csv'
+        non_prefetching_csv_file_name = f'{BENCHMARK_DATA_FOLDER}/trace_90p_reads_timing.csv'
+    elif benchmark_name == 'prefetching_synthetic':
+        csv_file_name = f'{BENCHMARK_DATA_FOLDER}/prefetching_synthetic.csv'
+        non_prefetching_csv_file_name = f'{BENCHMARK_DATA_FOLDER}/synthetic_timing.csv'
     else:
         raise ValueError("benchmark_name must be 'trace' or 'synthetic'")
     df = pd.read_csv(csv_file_name)
+    if non_prefetching_csv_file_name != None:
+        df['Prefetching'] = 'Prefetching'
+        # df['algorithm'] = df['algorithm'] + ' (Prefetching)'
+
+        non_prefetching_df = pd.read_csv(non_prefetching_csv_file_name)
+        non_prefetching_df['Prefetching'] = 'No Prefetching'
+        df = df.append(non_prefetching_df, ignore_index=True)
     df['hit_rate'] = df['num_hits']/df['num_accesses']*100
     df['miss_rate'] = df['num_misses']/df['num_accesses']*100
     # df['ratio_dirty_evictions'] = df['num_dirty_evictions']/df['num_evictions']
     # df.loc[df['num_dirty_evictions'] == 0, 'ratio_dirty_evictions'] = 0
 
+    df.rename(columns = {'algorithm':'Algorithm'}, inplace = True)
     print(df)
 
     for context in ['talk', 'poster']:
@@ -77,7 +95,8 @@ def plot(benchmark_name: str):
             ['num_dirty_evictions', 'Dirty Evictions'],
             ['time', 'Execution Time (s)']
         ]:
-            do_plot(benchmark_name, df, context, x_column, graph_info[0], x_label, graph_info[1])
+            if graph_info[0] in df.columns:
+                do_plot(benchmark_name, df, context, x_column, graph_info[0], x_label, graph_info[1])
 
 
 if __name__ == '__main__':
@@ -86,5 +105,7 @@ if __name__ == '__main__':
         plot('trace_20p_reads')
         plot('read_ratio')
         plot('synthetic')
+        plot('prefetching_trace')
+        # plot('prefetching_synthetic')
     else:
         plot(sys.argv[1])
