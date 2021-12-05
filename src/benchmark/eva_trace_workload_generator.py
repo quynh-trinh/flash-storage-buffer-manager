@@ -13,7 +13,7 @@ class TraceRecord():
         self.is_read = is_read
 
 class EvaTraceWorkloadGenerator(AbstractWorkloadGenerator):
-    def __init__(self):
+    def __init__(self, total_requests = 100000, read_ratio = 0.9):
         super().__init__()
         self._trace_file = "traces/seq_scan.log"
         self._trace = self._parse_log()
@@ -21,6 +21,8 @@ class EvaTraceWorkloadGenerator(AbstractWorkloadGenerator):
         # for record in self._trace:
         #     print(f"[{record.action}, {record.page_id}]")
         self._random_generator = default_rng(seed=12345)
+        self._read_ratio = read_ratio
+        self._num_total_requests = total_requests
         self._num_videos = 4
         self._num_workers = 8
         self._worker_requests: List[List[TraceRecord]] = []
@@ -29,7 +31,6 @@ class EvaTraceWorkloadGenerator(AbstractWorkloadGenerator):
             self._worker_requests.append([])
             self._populate_worker_requests(i)
             self._worker_curr_request.append(0)
-        self._num_total_requests = 10000
     
     def trace_done(self) -> bool:
         return self._num_total_requests == 0
@@ -97,7 +98,7 @@ class EvaTraceWorkloadGenerator(AbstractWorkloadGenerator):
     def _populate_worker_requests(self, worker_num: int):
         self._worker_requests[worker_num] = []
         query_type = int(self._random_generator.uniform(1, 101))
-        is_read = int(self._random_generator.uniform(1, 101)) <= 90
+        is_read = int(self._random_generator.uniform(1, 101)) <= int(self._read_ratio * 100)
         file = int(self._random_generator.uniform(0, self._num_videos))
         if(query_type <= 20):
             # whole sequential scan

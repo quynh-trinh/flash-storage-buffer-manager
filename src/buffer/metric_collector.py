@@ -22,6 +22,9 @@ class MetricCollector:
             return self._metrics[key_name]
         else:
             return 0
+    
+    def reset(self):
+        self._metrics.clear()
 
 class Metric(Enum):
     BUFFER_MANAGER_ACCESSES = 1
