@@ -2,6 +2,8 @@
 
 CS4420 / CS6422 project that explores the effectiveness of flash optmized buffer replacement strategies, particularly for video analytics workloads.
 
+Changes made to EVA for trace collection can be found here: <https://github.com/JKomskis/eva>
+
 ## Setup
 
 1. Create virtualenv: `python3 -m venv venv`
